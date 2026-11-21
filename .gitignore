@@ -6,3 +6,5 @@ package-lock.json
 /build/compiled
 /homebridge-yeelighter.d.ts
 /homebridge-yeelighter.min.js
+.homelab/
+__pycache__/

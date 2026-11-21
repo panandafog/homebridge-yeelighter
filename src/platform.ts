@@ -83,6 +83,7 @@ export class YeelighterPlatform implements DynamicPlatformPlugin {
 
     // add the restored accessory to the accessories cache so we can track if it has already been registered
     this.accessories.push(accessory);
+    this.agent.addTarget(accessory.context?.device?.host);
   }
 
   // called when a Yeelight has responded to the discovery query

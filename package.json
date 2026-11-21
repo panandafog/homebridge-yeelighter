@@ -1,7 +1,7 @@
 {
   "name": "homebridge-yeelighter",
   "displayName": "Yeelighter",
-  "version": "2.16.1",
+  "version": "2.16.1-homelab.1",
   "description": "Yeelight support for Homebridge with particular support of ceiling lights",
   "license": "MIT",
   "keywords": [
@@ -70,7 +70,7 @@
   },
   "homepage": "https://github.com/cellcortex/homebridge-yeelighter#readme",
   "scripts": {
-    "test": "npm run build && node test/lightservice.cjs",
+    "test": "pnpm run build && node test/lightservice.cjs && node --test test/reconnect.cjs test/discovery.cjs",
     "lint": "eslint src/**.ts --max-warnings=0",
     "watch": "npm run build && npm link && nodemon",
     "clean": "rm -rf ./dist",

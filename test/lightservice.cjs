@@ -1,5 +1,8 @@
 const assert = require("node:assert/strict");
-const { LightService } = require("../dist/lightservice.js");
+const path = require("node:path");
+const { LightService } = require(
+  path.join(process.env.YEELIGHTER_TEST_DIST || path.resolve(__dirname, "../dist"), "lightservice.js")
+);
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 function fixture() {
   const s = Object.create(LightService.prototype);

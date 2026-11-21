@@ -357,6 +357,7 @@ export class YeeAccessory {
 
   private onDeviceConnected = async () => {
     this.connected = true;
+    this.updateTimestamp = Date.now();
     this.log(`${this.info.model} Connected`);
 
     try {
@@ -518,7 +519,9 @@ export class YeeAccessory {
           this.log(
             `No update received within ${updateSince}s (Threshold: ${updateThreshold} (${this.platform.config.timeout}+${this.platform.config.interval}) => switching to unreachable`
           );
-          this.onDeviceDisconnected();
+          const error: NodeJS.ErrnoException = new Error("Yeelighter heartbeat timed out");
+          error.code = "ETIMEDOUT";
+          this.device.socketClosed(error);
         } else {
           this.sendHeartbeat();
         }

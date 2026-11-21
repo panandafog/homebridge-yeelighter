@@ -73,34 +73,24 @@ export class Device extends EventEmitter {
   reconnect() {
     try {
       this.forceDisconnect = false;
-      if (this.socket && this.socket.errored) {
-        this.socket.destroy();
-        this.socket = undefined;
+      if (this.retryTimer) {
+        clearTimeout(this.retryTimer);
+        delete this.retryTimer;
       }
-      if (!this.socket || this.socket.destroyed || this.socket.closed || this.socket.errored) {
-        this.socket = new net.Socket({ allowHalfOpen: false });
-        this.bindSocket();
-        this.socket.connect({ host: this.info.host, port: this.info.port }, () => {
-          this.didConnect();
-          this.emit("connected");
-        });
+      if (this.socket && !this.socket.destroyed && !this.socket.closed && !this.socket.errored) {
+        return;
       }
-    } catch (error: any) {
-      this.socketClosed(error);
-    }
-  }
-
-  connect() {
-    try {
-      this.forceDisconnect = false;
       if (this.socket) {
-        this.socket.removeAllListeners();
         this.socket.destroy();
-        this.socket = undefined;
       }
-      this.socket = new net.Socket({ allowHalfOpen: false });
+      this.rest = "";
+      const socket = new net.Socket({ allowHalfOpen: false });
+      this.socket = socket;
       this.bindSocket();
-      this.socket.connect({ host: this.info.host, port: this.info.port }, () => {
+      socket.connect({ host: this.info.host, port: this.info.port }, () => {
+        if (this.socket !== socket || this.forceDisconnect) {
+          return;
+        }
         this.didConnect();
         this.emit("connected");
       });
@@ -109,11 +99,19 @@ export class Device extends EventEmitter {
     }
   }
 
+  connect() {
+    this.reconnect();
+  }
+
   disconnect(forceDisconnect = true) {
     this.forceDisconnect = forceDisconnect;
     this.connected = false;
-    this.socket?.destroy();
+    const socket = this.socket;
     delete this.socket;
+    this.rest = "";
+    if (socket) {
+      socket.destroy();
+    }
     this.emit("disconnected");
     if (this.forceDisconnect && this.retryTimer) {
       clearTimeout(this.retryTimer);
@@ -122,49 +120,58 @@ export class Device extends EventEmitter {
   }
 
   bindSocket() {
-    this.socket?.on("data", (data) => {
-      this.didReceiveResponse(data);
+    const socket = this.socket;
+    if (!socket) {
+      return;
+    }
+    socket.on("data", (data) => {
+      if (this.socket === socket && !this.forceDisconnect) {
+        this.didReceiveResponse(data);
+      }
     });
 
-    this.socket?.on("error", (error) => {
-      this.emit("socketError", error);
-      this.socketClosed(error);
+    socket.on("error", (error) => {
+      if (this.socket === socket && !this.forceDisconnect) {
+        this.emit("socketError", error);
+        this.socketClosed(error);
+      }
     });
 
-    this.socket?.on("end", () => {
-      this.emit("socketEnd");
-      this.socketClosed();
+    socket.on("end", () => {
+      if (this.socket === socket && !this.forceDisconnect) {
+        this.emit("socketEnd");
+        this.socketClosed();
+      }
+    });
+
+    socket.on("close", () => {
+      if (this.socket === socket && !this.forceDisconnect) {
+        this.socketClosed();
+      }
     });
   }
 
   socketClosed(error?: Error) {
-    if (this.forceDisconnect) {
+    if (this.forceDisconnect || (!this.socket && this.retryTimer)) {
       return;
     }
 
     if (error) {
-      const message = error.message ?? "";
-      if (message.includes("EHOSTUNREACH")) {
-        // unreachable, no need to retry
-        this.disconnect(true);
-      } else {
-        console.log(`Socket Closed with error "${error.name}, retrying to connect in 5s"`, message);
-        this.disconnect(false);
-        if (this.retryTimer) {
-          clearTimeout(this.retryTimer);
-          delete this.retryTimer;
-        }
-        this.retryTimer = setTimeout(this.reconnect.bind(this), 5000);
-      }
+      console.log("Socket closed; retrying to connect in 5s:", error.message);
     } else {
-      // graceful close (e.g. device rebooted) — schedule reconnect
-      this.disconnect(false);
-      if (this.retryTimer) {
-        clearTimeout(this.retryTimer);
-        delete this.retryTimer;
-      }
-      this.retryTimer = setTimeout(this.reconnect.bind(this), 5000);
+      console.log("Socket closed by peer; retrying to connect in 5s");
     }
+    this.disconnect(false);
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      delete this.retryTimer;
+    }
+    this.retryTimer = setTimeout(() => {
+      delete this.retryTimer;
+      if (!this.forceDisconnect) {
+        this.reconnect();
+      }
+    }, 5000);
   }
 
   didConnect() {

@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import dgram from "node:dgram";
+import { isIPv4 } from "node:net";
 import url from "node:url";
 import { DeviceInfo, EMPTY_DEVICEINFO } from "./yeedevice";
 import httpHeaders from "http-headers";
@@ -16,20 +17,55 @@ const options = {
 
 export class Discovery extends EventEmitter {
   socket: dgram.Socket;
+  private unicastTargets = new Set<string>();
+  private discoveryRetries: NodeJS.Timeout[] = [];
+  private discoveryInterval?: NodeJS.Timeout;
   constructor() {
     super();
     this.socket = dgram.createSocket({ type: "udp4", reuseAddr: true });
   }
 
+  addTarget(host: unknown) {
+    if (typeof host === "string" && isIPv4(host)) {
+      this.unicastTargets.add(host);
+    }
+  }
+
   discover() {
     const buffer = Buffer.from(options.discoveryMsg);
-    this.socket.send(buffer, 0, buffer.length, options.port, options.multicastAddr);
+    for (const host of [options.multicastAddr, ...this.unicastTargets]) {
+      try {
+        this.socket.send(buffer, 0, buffer.length, options.port, host, (error) => {
+          if (error) {
+            console.warn("Yeelight discovery send failed:", error.message);
+          }
+        });
+      } catch (error: any) {
+        console.warn("Yeelight discovery send failed:", error.message);
+      }
+    }
   }
 
   listen() {
     this.socket.on("listening", () => {
       this.discover();
+      this.discoveryRetries = [5000, 10_000, 15_000].map((delay) => {
+        const timer = setTimeout(() => this.discover(), delay);
+        timer.unref();
+        return timer;
+      });
+      this.discoveryInterval = setInterval(() => this.discover(), 60_000);
+      this.discoveryInterval.unref();
       this.emit("started");
+    });
+
+    this.socket.on("close", () => {
+      for (const timer of this.discoveryRetries) {
+        clearTimeout(timer);
+      }
+      if (this.discoveryInterval) {
+        clearInterval(this.discoveryInterval);
+      }
     });
 
     this.socket.on("message", this.onMessage);
