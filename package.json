@@ -1,11 +1,12 @@
 {
-  "name": "homebridge-yeelighter",
-  "displayName": "Yeelighter",
-  "version": "2.16.1",
-  "description": "Yeelight support for Homebridge with particular support of ceiling lights",
+  "name": "homebridge-yeelighter-panandafog",
+  "displayName": "Yeelighter Panandafog",
+  "version": "2.16.1-panandafog.0",
+  "description": "Panandafog's fork of Yeelighter: Yeelight support for Homebridge, including ceiling and ambience lights",
   "license": "MIT",
   "keywords": [
     "homebridge-plugin",
+    "supports-hap",
     "ceiling",
     "yeelight",
     "xiaomi",
@@ -22,12 +23,18 @@
     "Galaxy"
   ],
   "author": "Thomas Kroeber",
+  "contributors": [
+    {
+      "name": "panandafog",
+      "url": "https://github.com/panandafog"
+    }
+  ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/cellcortex/homebridge-yeelighter.git"
+    "url": "git+https://github.com/panandafog/homebridge-yeelighter.git"
   },
   "bugs": {
-    "url": "http://github.com/cellcortex/homebridge-yeelighter/issues"
+    "url": "https://github.com/panandafog/homebridge-yeelighter/issues"
   },
   "engines": {
     "homebridge": "^1.6.0 || ^2.0.0-beta.0",
@@ -68,7 +75,7 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   },
-  "homepage": "https://github.com/cellcortex/homebridge-yeelighter#readme",
+  "homepage": "https://github.com/panandafog/homebridge-yeelighter#readme",
   "scripts": {
     "test": "npm run build && node test/lightservice.cjs",
     "lint": "eslint src/**.ts --max-warnings=0",
@@ -79,11 +86,10 @@
     "prepublishOnly": "pnpm clean && pnpm lint && pnpm build",
     "start": "/usr/local/bin/homebridge -D -P ../homebridge-yeelighter",
     "debug": "DEBUG=* /usr/local/bin/homebridge -D -P ../homebridge-yeelighter",
-    "postversion": "git push --tags && pnpm publish . --tag $npm_package_version && git push && echo \"Successfully released version $npm_package_version!\"",
     "release-commit": "standard-version -a",
-    "release": "standard-version -r minor && git push --follow-tags origin master && pnpm publish",
-    "release-patch": "standard-version -r patch && git push --follow-tags origin master && pnpm publish",
-    "release-beta": "standard-version -p beta && git push --follow-tags origin master && pnpm publish --tag=beta",
+    "release": "standard-version -r minor",
+    "release-patch": "standard-version -r patch",
+    "release-beta": "standard-version -p beta",
     "commit": "cz"
   },
   "config": {
